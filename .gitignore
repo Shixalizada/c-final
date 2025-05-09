@@ -1,32 +1,319 @@
-# Prerequisites
-*.d
+#include <iostream>
+#include <vector>
+#include <string>
+#include <fstream>
+using namespace std;
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
 
-# Precompiled Headers
-*.gch
-*.pch
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
 
-# Fortran module files
-*.mod
-*.smod
+class User {
+public:
+    string name, surname, username, password;
+    //İstifadəçidən ad, soyad, istifadəçi adı və parol alır.Yeni istifadəçini qeydiyyatdan keçirir.
+    void signUp() {
+        cout << "First Name: ";
+        cin >> name;
+        cout << "Last Name: ";
+        cin >> surname;
+        cout << "Username: ";
+        cin >> username;
+        cout << "Password: ";
+        cin >> password;
+        cout << "Registration completed!" << endl;
+    }
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+    //Verilən istifadəçi adı və parolu mövcud istifadəçi ilə yoxlayır.Uyğundursa true, uyğun deyilsə false qaytarır.
+    bool signIn(string uname, string pass) {
+        return username == uname && password == pass;
+    }
+};
 
-# Executables
-*.exe
-*.out
-*.app
+
+
+
+
+class Question {
+public:
+
+    string questionText;
+    vector<string> answers;
+    int correctIndex;
+    //Parametrlərlə sual obyektini yaradır.
+
+
+    Question() {}
+    Question(string qText, vector<string> ans, int correct) {
+        questionText = qText;
+        answers = ans;
+        correctIndex = correct;
+    }
+
+
+    //İstifadəçidən sual və 4 cavab alır.Doğru cavabın sıra nömrəsini alır(1 - 4).
+    void input() {
+        cout << "Question: ";
+        cin.ignore();
+        getline(cin, questionText);
+
+        answers.clear();
+        for (int i = 0; i < 4; i++) {
+            string ans;
+            cout << "Answer " << i + 1 << ": ";
+            getline(cin, ans);
+            answers.push_back(ans);
+        }
+
+        cout << "Enter the correct answer number (1-4): ";
+        cin >> correctIndex;
+        correctIndex--;
+    }
+
+
+    //Sualı və cavab variantlarını ekrana çıxarır.
+    void display(int index) {
+        cout << index + 1 << ") " << questionText << endl;
+        for (int i = 0; i < answers.size(); i++) {
+            cout << i + 1 << ") " << answers[i] << endl;
+        }
+    }
+
+
+    //İstifadəçinin seçdiyi cavabın doğru olub-olmadığını yoxlayır.
+    bool checkAnswer(int userChoice) {
+        return userChoice == correctIndex;
+    }
+
+
+    //Sualı, cavabları və doğru cavabı fayla əlavə edir.
+    void saveToFile(const string& filePath) {
+        ofstream fout(filePath, ios::app);
+        if (fout.is_open()) {
+            fout << "QUESTION" << endl;
+            fout << questionText << endl;
+            for (string& ans : answers)
+                fout << ans << endl;
+            fout << correctIndex << endl;
+            fout.close();
+        }
+    }
+
+
+    //Fayldan bir sualı oxuyub Question obyektinə çevirir və qaytarır.
+    static Question readFromFile(ifstream& fin) {
+        Question q;
+        getline(fin, q.questionText);
+        q.answers.clear();
+        for (int i = 0; i < 4; i++) {
+            string ans;
+            getline(fin, ans);
+            q.answers.push_back(ans);
+        }
+        fin >> q.correctIndex;
+        fin.ignore();
+        return q;
+    }
+};
+
+
+
+
+
+
+class Quiz {
+    vector<Question> questions;
+
+public:
+
+    //Verilmiş fayldan bütün sualları oxuyur və questions massivinə əlavə edir.
+    void loadFromFile(const string& filePath) {
+        ifstream fin(filePath);
+        if (!fin.is_open()) {
+            cout << "Could not open file: " << filePath << endl;
+            return;
+        }
+
+
+        string line;
+        while (getline(fin, line)) {
+            if (line == "QUESTION") {
+                Question q = Question::readFromFile(fin);
+                questions.push_back(q);
+            }
+        }
+
+        fin.close();
+    }
+
+    //İstifadəçidən neçə sual əlavə etmək istədiyini soruşur.Hər sualı daxil etdikcə həm yadda saxlayır, həm də fayla əlavə edir.
+    void createCustomQuiz(const string& filePath) {
+        int count;
+        cout << "How many questions would you like to add? ";
+        cin >> count;
+
+
+        for (int i = 0; i < count; i++) {
+            cout << "---------- " << i + 1 << ". question ----------" << endl;
+            Question q;
+            q.input();
+            questions.push_back(q);
+            q.saveToFile(filePath); 
+        }
+
+        cout << "Custom quiz created!" << endl;
+    }
+
+    //Sualları bir - bir istifadəçiyə göstərir.Cavabları yoxlayır, nəticəni hesablayır və göstərir.
+    void startQuiz() {
+        if (questions.empty()) {
+            cout << "No quiz available!" << endl;
+            return;
+        }
+
+        int correct = 0;
+        for (int i = 0; i < questions.size(); i++) {
+            system("cls"); 
+            questions[i].display(i);
+
+            int userChoice;
+            cout << "Enter your answer (1-4): ";
+            cin >> userChoice;
+
+            while (userChoice < 1 || userChoice > 4) {
+                cout << "Invalid choice. Enter a number between 1 and 4: ";
+                cin >> userChoice;
+            }
+
+            if (questions[i].checkAnswer(userChoice - 1)) {
+                cout << "Correct!" << endl;
+                correct++;
+            }
+            else {
+                cout << "Incorrect. The correct answer was: "
+                    << questions[i].correctIndex + 1 << endl;
+            }
+
+            cout << "Press Enter to continue...";
+            cin.ignore();
+            cin.get();
+        }
+
+        int score = correct * 20;
+        cout << endl << "Result: " << correct << " correct, "
+            << questions.size() - correct << " incorrect." << endl;
+        cout << "Your score: " << score << " / "
+            << questions.size() * 20 << endl;
+    }
+
+
+    //Sualları aytarır.
+    vector<Question>& getQuestions() {
+        return questions;
+    }
+};
+
+
+
+
+
+
+
+
+void main() {
+
+    vector<User> users;
+    User currentUser;
+    int choice;
+    string filePath = "C:\\Users\\lenovo\\OneDrive\\Desktop\\final.txt";
+
+    //Əsas menyunu göstərir (Sign Up, Sign In, Exit).
+
+    //Sign Up : Yeni istifadəçi əlavə edir.
+
+    //Sign In : Sistemdəki istifadəçilərlə giriş yoxlaması edir.
+
+    //Girişdən sonra :
+
+    //Start Quiz : Fayldan oxunan sualları istifadəçiyə göstərir.
+
+    //Create and Start Your Quiz : Yeni suallar yaradır və fayla qeyd edir.
+
+    //Exit : Proqramı bitirir.
+    while (true) {
+        cout << endl;
+        cout << "==== Main Menu ====" << endl;
+        cout << "1. Sign Up" << endl;
+        cout << "2. Sign In" << endl;
+        cout << "0. Exit" << endl;
+        cout << "Choice: ";
+        cin >> choice;
+
+
+        if (choice == 1) {
+            currentUser.signUp();
+            users.push_back(currentUser);
+        }
+
+        else if (choice == 2) {
+            string uname, pass;
+            cout << "Username: ";
+            cin >> uname;
+            cout << "Password: ";
+            cin >> pass;
+
+
+            bool found = false;
+            for (User& u : users) {
+                if (u.signIn(uname, pass)) {
+                    currentUser = u;
+                    found = true;
+                    break;
+                }
+            }
+
+
+            if (!found) {
+                cout << "Incorrect username or password!" << endl;
+                continue;
+            }
+
+
+            Quiz quiz;
+            quiz.loadFromFile(filePath); 
+
+
+            while (true) {
+                cout << endl;
+                cout << "--- Quiz Menu ---" << endl;
+                cout << "1. Start Quiz" << endl;
+                cout << "2. Create and Start Your Quiz" << endl;
+                cout << "0. Back" << endl;
+                cout << "Choice: ";
+                cin >> choice;
+
+                if (choice == 1) {
+                    quiz.startQuiz();
+                }
+                else if (choice == 2) {
+                    quiz.createCustomQuiz(filePath);
+                    quiz.startQuiz();
+                }
+                else if (choice == 0) {
+                    break;
+                }
+                else {
+                    cout << "Invalid choice!" << endl;
+                }
+            }
+
+        }
+        else if (choice == 0) {
+            cout << "Exiting the program..." << endl;
+            break;
+        }
+        else {
+            cout << "Invalid choice!" << endl;
+        }
+    }
+
+}
